@@ -3,6 +3,38 @@ para mi
 
 ## Solución: Error al actualizar GitHub Copilot Chat en VS Code (WSL + Windows)
 
+> ⚠️ **Este error puede repetirse cada vez que VS Code se actualiza a una nueva versión**, porque el servidor WSL cambia de carpeta (p. ej. `ce099c1ed2` → `07ff9d6178`). Los pasos de esta guía aplican siempre que vuelva a ocurrir.
+
+### ⚡ Solución rápida (WSL)
+
+Si el error aparece en WSL, ejecuta estos dos comandos en la terminal WSL y reinicia VS Code:
+
+```bash
+# 1. Eliminar la extensión corrupta de Copilot Chat en WSL
+rm -rf ~/.vscode-server/extensions/github.copilot-chat*
+
+# 2. Eliminar cualquier archivo de descarga pendiente/corrupto
+rm -f ~/.vscode-server/extensionsCache/*copilot-chat*
+```
+
+Después, en VS Code (conectado a WSL), ve a **Extensiones** (`Ctrl+Shift+X`), busca **"GitHub Copilot Chat"** y haz clic en **Instalar** o **Actualizar**.
+
+---
+
+### ⚡ Solución rápida (Windows local)
+
+Si el error aparece en Windows, ejecuta esto en PowerShell y reinicia VS Code:
+
+```powershell
+# 1. Eliminar la extensión corrupta de Copilot Chat en Windows
+Remove-Item -Recurse -Force "$env:USERPROFILE\.vscode\extensions\github.copilot-chat*"
+
+# 2. Limpiar la caché de descargas
+Remove-Item -Force "$env:APPDATA\Code\CachedExtensionVSIXs\*copilot-chat*" -ErrorAction SilentlyContinue
+```
+
+---
+
 ### Descripción del problema
 
 Al intentar actualizar la extensión `github.copilot-chat` en VS Code, aparecen los siguientes errores:
@@ -21,11 +53,20 @@ Esto ocurre tanto en el entorno **local (Windows)** como en **WSL (Linux)** porq
 
 ### Causa raíz
 
-El archivo `.vsix` descargado desde el Marketplace quedó corrupto o incompleto (truncado) durante la descarga automática. VS Code intenta descomprimir ese archivo y falla porque no es un ZIP válido. Los errores de red (`Canceled`) indican que la conexión se interrumpió antes de completar la descarga.
+El error ocurre porque el archivo `.vsix` de la extensión quedó corrupto o incompleto (truncado) durante la descarga automática desde el Marketplace. VS Code intenta descomprimir ese archivo y falla porque no es un ZIP válido.
+
+Los errores de red (`Canceled`) indican que la conexión se interrumpió antes de que la descarga terminara.
+
+**¿Por qué se repite tras cada actualización de VS Code?**
+
+- Cuando VS Code se actualiza, crea una nueva carpeta de servidor (p. ej. `~/.vscode-server/bin/07ff9d6178.../`).
+- Esa nueva versión del servidor intenta descargar de nuevo las extensiones necesarias.
+- Si la descarga vuelve a interrumpirse, el error se repite con el nuevo archivo corrupto.
+- La solución es siempre la misma: eliminar los archivos corruptos y dejar que VS Code descargue de nuevo.
 
 ---
 
-### Solución paso a paso
+### Solución paso a paso (detallada)
 
 #### 1. Limpiar archivos corruptos en Windows (local)
 
@@ -39,7 +80,7 @@ Remove-Item -Recurse -Force "$env:USERPROFILE\.vscode\extensions\github.copilot-
 También revisa si hay archivos `.vsix` temporales pendientes:
 
 ```powershell
-Remove-Item -Force "$env:APPDATA\Code\CachedExtensionVSIXs\*copilot-chat*"
+Remove-Item -Force "$env:APPDATA\Code\CachedExtensionVSIXs\*copilot-chat*" -ErrorAction SilentlyContinue
 ```
 
 #### 2. Limpiar archivos corruptos en WSL (Linux)
@@ -56,9 +97,9 @@ También limpia la caché de descargas si existe:
 rm -f ~/.vscode-server/extensionsCache/*copilot-chat*
 ```
 
-#### 3. Reinstalar la extensión manualmente
+#### 3. Reinstalar la extensión manualmente (si la descarga automática sigue fallando)
 
-Si la actualización automática sigue fallando, descarga e instala la extensión manualmente:
+Si después de limpiar los archivos la actualización automática sigue fallando, descarga e instala la extensión manualmente:
 
 1. Ve a [https://marketplace.visualstudio.com/items?itemName=GitHub.copilot-chat](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot-chat) (o busca "GitHub Copilot Chat" en el Marketplace)
 2. Haz clic en **"Download Extension"** para descargar el archivo `.vsix`.
@@ -68,14 +109,12 @@ Si la actualización automática sigue fallando, descarga e instala la extensió
    ```
 4. Selecciona el archivo `.vsix` descargado.
 
-**Para WSL**: Copia el `.vsix` descargado en Windows al sistema de archivos de WSL y luego instálalo desde la terminal:
+**Para WSL**: En VS Code conectado a WSL, usa la paleta de comandos (`Ctrl+Shift+P`) → **"Extensions: Install from VSIX..."** mientras estás en el contexto de WSL. O bien desde la terminal de WSL:
 
 ```bash
 # Desde WSL, instalar la extensión en el servidor remoto
 code --install-extension /ruta/al/archivo/github.copilot-chat-*.vsix
 ```
-
-O bien, en VS Code conectado a WSL, usa la paleta de comandos (`Ctrl+Shift+P`) → **"Extensions: Install from VSIX..."** mientras estás en el contexto de WSL.
 
 #### 4. Forzar actualización desde VS Code
 
@@ -113,11 +152,16 @@ Es normal que la versión de una extensión en WSL y en local sea diferente. Cad
 
 ---
 
-### Resumen rápido
+### Resumen rápido (aplica cada vez que ocurra el error)
 
 ```
-1. Eliminar carpetas corruptas de github.copilot-chat en Windows y en WSL
-2. Reiniciar VS Code
-3. Intentar actualizar desde la pestaña Extensiones
-4. Si sigue fallando, descargar el .vsix manualmente e instalar
+WSL:
+  rm -rf ~/.vscode-server/extensions/github.copilot-chat*
+  rm -f  ~/.vscode-server/extensionsCache/*copilot-chat*
+
+Windows (PowerShell):
+  Remove-Item -Recurse -Force "$env:USERPROFILE\.vscode\extensions\github.copilot-chat*"
+
+→ Reiniciar VS Code → Instalar/Actualizar desde la pestaña Extensiones
+→ Si sigue fallando: descargar el .vsix manualmente e instalar con "Extensions: Install from VSIX..."
 ```
